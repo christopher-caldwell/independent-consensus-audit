@@ -2,18 +2,18 @@ audit_target: "provided document or artifact"
 audit_type: "general_audit"
 reviewer_count: 5
 reviewer_mode: "identical_reviewers"
-quorum_threshold: 0.60
-include_minority_findings: true
-minority_severity_floor: "high"
+convergence_threshold: 0.60
 output_directory: "./audits"
 final_report_filename: "final-consensus-audit.md"
 individual_report_pattern: "reviewer-{number}.md"
+individual_findings_pattern: "reviewer-{number}.findings.yaml"
 allowed_materials:
   - "the target artifact"
   - "user-provided requirements"
   - "user-provided context"
 disallowed_materials:
   - "./audits/reviewer-*.md"
+  - "./audits/reviewer-*.findings.yaml"
   - "./audits/final-consensus-audit.md"
 review_focuses:
   reviewer_01: general_quality

@@ -1,0 +1,30 @@
+reviewer_id: "reviewer-01"
+audit_target: ""
+audit_type: ""
+review_focus: ""
+
+findings:
+  - finding_id: "R01-F01"
+    title: ""
+    category: "correctness | security | performance | maintainability | testing | documentation | design | other"
+    severity: "critical | high | medium | low | informational"
+    status: "issue | risk | observation | recommendation"
+    location: ""
+    assertion: ""
+    evidence_strength: "strong | moderate | weak | none"
+    evidence:
+      - kind: "code | test | runtime | primary_source | secondary_source | reasoning | other"
+        locator: ""
+        observation: ""
+        provenance_root: ""
+    impact: ""
+    assumptions: []
+    uncertainty: ""
+    recommended_fix: ""
+
+checked_non_issues:
+  - location: ""
+    concern_checked: ""
+    reason_not_a_finding: ""
+
+open_questions: []

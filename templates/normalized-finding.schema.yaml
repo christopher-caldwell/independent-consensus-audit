@@ -1,13 +1,62 @@
+canonical_id: "F-001"
 canonical_title: ""
 category: "correctness | security | performance | maintainability | testing | documentation | design | other"
+assertion: ""
+
 severity: "critical | high | medium | low | informational"
-reviewers_supporting: []
-reviewers_noting_related_issue: []
-support_count: 0
-total_reviewers: 0
-support_ratio: 0.0
-quorum_status: "unanimous | strong_consensus | meets_quorum | split | below_quorum | minority_high_severity | likely_false_positive"
-evidence_summary: ""
-root_verification: "verified | partially_verified | contradicted | not_verified | unable_to_verify"
-confidence_rating: 0
+impact_summary: ""
+
+reviewer_positions:
+  supports: []
+  contradicts: []
+  related: []
+  not_observed: []
+
+position_counts:
+  supporting: 0
+  contradicting: 0
+  related: 0
+  not_observed: 0
+  explicit_positions: 0
+
+reviewer_coverage:
+  requested: 0
+  completed: 0
+  eligible: 0
+  failed: 0
+  excluded: 0
+  completion_ratio: 0.0
+  eligible_ratio: 0.0
+
+convergence:
+  mode: "identical_reviewers | focused_reviewers"
+  detection_rate: null
+  position_agreement: null
+  threshold: 0.60
+  threshold_met: null
+  label: "unanimous_among_completed | recurrent | limited | isolated | none | not_comparable"
+
+evidence:
+  strength: "strong | moderate | weak | none"
+  summary: ""
+  provenance_roots: []
+  shared_provenance: false
+  correlation_notes: []
+
+contradiction:
+  present: false
+  reviewers: []
+  evidence_strength: "strong | moderate | weak | none"
+  summary: ""
+  provenance_roots: []
+
+root_verification:
+  status: "verified | partially_verified | contradicted | unable_to_verify | not_attempted"
+  method: ""
+  evidence: ""
+  limitations: ""
+
+unresolved_assumptions: []
+
+final_disposition: "verified | partially_verified | contested | unverified | rejected"
 recommended_action: ""
