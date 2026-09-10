@@ -1,0 +1,4 @@
+interface:
+  display_name: "Independent Consensus Audit"
+  short_description: "Run independent audits with consensus synthesis"
+  default_prompt: "Use $independent-consensus-audit to run independent reviewers on this target and synthesize a final consensus report."

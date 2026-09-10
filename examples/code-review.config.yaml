@@ -1,0 +1,23 @@
+audit_target: "current branch diff against main"
+audit_type: "branch_review"
+reviewer_count: 5
+reviewer_mode: "identical_reviewers"
+quorum_threshold: 0.60
+include_minority_findings: true
+minority_severity_floor: "high"
+output_directory: "./audits"
+final_report_filename: "final-consensus-audit.md"
+individual_report_pattern: "reviewer-{number}.md"
+allowed_materials:
+  - "git diff main...HEAD"
+  - "repository files necessary to inspect changed behavior"
+  - "test output generated during the review"
+disallowed_materials:
+  - "./audits/reviewer-*.md"
+  - "./audits/final-consensus-audit.md"
+review_focuses:
+  reviewer_01: code_review
+  reviewer_02: code_review
+  reviewer_03: code_review
+  reviewer_04: code_review
+  reviewer_05: code_review

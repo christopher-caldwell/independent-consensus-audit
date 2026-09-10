@@ -1,0 +1,13 @@
+canonical_title: ""
+category: "correctness | security | performance | maintainability | testing | documentation | design | other"
+severity: "critical | high | medium | low | informational"
+reviewers_supporting: []
+reviewers_noting_related_issue: []
+support_count: 0
+total_reviewers: 0
+support_ratio: 0.0
+quorum_status: "unanimous | strong_consensus | meets_quorum | split | below_quorum | minority_high_severity | likely_false_positive"
+evidence_summary: ""
+root_verification: "verified | partially_verified | contradicted | not_verified | unable_to_verify"
+confidence_rating: 0
+recommended_action: ""

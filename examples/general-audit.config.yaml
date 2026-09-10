@@ -1,0 +1,23 @@
+audit_target: "provided document or artifact"
+audit_type: "general_audit"
+reviewer_count: 5
+reviewer_mode: "identical_reviewers"
+quorum_threshold: 0.60
+include_minority_findings: true
+minority_severity_floor: "high"
+output_directory: "./audits"
+final_report_filename: "final-consensus-audit.md"
+individual_report_pattern: "reviewer-{number}.md"
+allowed_materials:
+  - "the target artifact"
+  - "user-provided requirements"
+  - "user-provided context"
+disallowed_materials:
+  - "./audits/reviewer-*.md"
+  - "./audits/final-consensus-audit.md"
+review_focuses:
+  reviewer_01: general_quality
+  reviewer_02: general_quality
+  reviewer_03: general_quality
+  reviewer_04: general_quality
+  reviewer_05: general_quality
