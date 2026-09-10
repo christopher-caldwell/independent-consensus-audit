@@ -1,396 +1,381 @@
 ---
 name: independent-consensus-audit
-description: Runs configurable independent subagent audits that each write isolated Markdown reports, then performs root-only synthesis to identify quorum-backed findings, confidence ratings, disputed issues, and strong minority concerns.
+description: Runs isolated independent audits and root-only evidence-aware synthesis that separates reviewer convergence, evidence, contradiction, verification, and impact.
 ---
 
 # Independent Consensus Audit
 
 ## Purpose
 
-Use this skill when a user wants multiple independent reviews of the same target followed by a root-level synthesis.
+Use this skill when a user wants multiple independent reviews of the same target followed by root-level synthesis.
 
-This skill is useful for:
+The skill is appropriate for code, security, architecture, documents, policy, research, product, UX, and other audits where independent judgment can expose blind spots.
 
-- Code review against a branch, pull request, commit, diff, or repository
-- Security, correctness, performance, maintainability, or architecture audits
-- Document, policy, research, product, UX, or general quality audits
-- Any review where independent judgment followed by structured consensus is valuable
+The synthesis must keep five questions separate:
 
-The core goal is to reduce anchoring and premature agreement. Each reviewer forms its own conclusions first. The root agent reads the completed individual reports only after every reviewer has finished, then deduplicates findings, determines quorum, assigns confidence, preserves important minority concerns, and writes the final report.
+1. **Independence:** Did reviewers work without seeing peer output?
+2. **Convergence:** How often did comparable reviewers independently identify the same assertion?
+3. **Evidence:** What concrete support exists, and does it come from distinct provenance roots?
+4. **Contradiction:** Is there credible counter-evidence or an unresolved defeater?
+5. **Impact:** How severe would the issue be if the assertion is true?
 
-## Non-Negotiable Independence Rule
+**Consensus is not verification.** Convergence describes reproducibility of an observation. It does not establish truth by itself.
 
-Subagents must work independently.
+## Non-Negotiable Independence
 
 A reviewer must not:
 
-- Read another reviewer's audit
-- Ask another reviewer for opinions
-- Use another reviewer's output
-- Coordinate findings with another reviewer
-- Revise conclusions based on peer findings
-- Attempt to infer expected consensus
-- Soften, inflate, or suppress findings to match perceived group opinion
+- read another reviewer's Markdown or structured findings;
+- list or inspect the shared audit output directory except to write its assigned files;
+- communicate or coordinate with peers;
+- receive peer findings, partial consensus, or root synthesis notes;
+- revise conclusions to match expected consensus.
 
-The root agent is the only agent allowed to read all completed individual audit files.
+The root is the only agent allowed to read all reviewer artifacts.
+
+The root must not read any reviewer output until every requested reviewer has reached a terminal state: completed, failed, or explicitly excluded.
 
 ## Default Configuration
-
-If the user does not provide configuration, use these defaults:
 
 ```yaml
 audit_target: "<infer from user request>"
 audit_type: "general_audit"
 reviewer_count: 5
 reviewer_mode: "identical_reviewers"
-quorum_threshold: 0.60
-include_minority_findings: true
-minority_severity_floor: "high"
+convergence_threshold: 0.60
 output_directory: "./audits"
 individual_report_pattern: "reviewer-{number}.md"
+individual_findings_pattern: "reviewer-{number}.findings.yaml"
 final_report_filename: "final-consensus-audit.md"
 ```
 
-The root agent may override defaults only when the user's request clearly requires it.
-Do not infer `focused_reviewers` from `audit_type` alone. Use `focused_reviewers`
-only when the user explicitly asks for different reviewer lenses, different
-focuses, specialist reviewers, or provides reviewer-specific focuses. For
-consensus, averaging, same-task review, or independent duplicate review, use
-`identical_reviewers`. Resolve relative output paths against the active workspace
-or audit target root, not against the installed skill directory.
+`convergence_threshold` is descriptive only. Crossing it means an assertion recurred across independent reviews; it does not mean the assertion is accepted or verified. The default `0.60` is a reporting convention for grouping recurrence, not a statistically justified truth or probability threshold.
+
+Use `identical_reviewers` by default. Use `focused_reviewers` only when the user explicitly asks for different lenses, specialists, or reviewer-specific focuses.
+
+Resolve relative output paths against the active workspace or audit target root, never the installed skill directory.
+
+### Legacy configuration
+
+Treat `quorum_threshold` as a deprecated alias for `convergence_threshold`.
+
+Do not use legacy `include_minority_findings` or `minority_severity_floor` as acceptance gates. Every distinct finding must be normalized. Severity may affect verification effort and remediation priority, but not epistemic credibility.
 
 ## Configurable Inputs
-
-Supported configuration fields:
 
 ```yaml
 audit_target: "<branch, diff, repo path, document, feature, system, or other target>"
 audit_type: "<code_review | branch_review | security_audit | architecture_audit | document_audit | product_audit | general_audit | custom>"
 reviewer_count: 5
 reviewer_mode: "<identical_reviewers | focused_reviewers>"
-quorum_threshold: 0.60
-include_minority_findings: true
-minority_severity_floor: "high"
+convergence_threshold: 0.60
 output_directory: "./audits"
-final_report_filename: "final-consensus-audit.md"
 individual_report_pattern: "reviewer-{number}.md"
+individual_findings_pattern: "reviewer-{number}.findings.yaml"
+final_report_filename: "final-consensus-audit.md"
 allowed_materials:
-    - "<target files, diff, docs, requirements, test output, issue description>"
+  - "<target files, diff, docs, requirements, test output, issue description>"
 disallowed_materials:
-    - "./audits/reviewer-*.md"
-    - "./audits/final-consensus-audit.md"
+  - "./audits/reviewer-*.md"
+  - "./audits/reviewer-*.findings.yaml"
+  - "./audits/final-consensus-audit.md"
 review_focuses:
-    reviewer_01: code_review
-    reviewer_02: code_review
-    reviewer_03: code_review
+  reviewer_01: general_quality
+  reviewer_02: general_quality
+  reviewer_03: general_quality
 ```
 
 ## Bundled Resources
 
-Use these resources as needed:
+- `templates/individual-reviewer-prompt.md`: reviewer isolation and Markdown format.
+- `templates/reviewer-findings.schema.yaml`: structured reviewer companion.
+- `templates/normalized-finding.schema.yaml`: root-level normalized finding.
+- `templates/final-consensus-report-template.md`: final synthesis format.
+- `checklists/root-synthesis-checklist.md`: root reconciliation checklist.
+- `examples/*.config.yaml`: configuration examples.
 
-- `templates/individual-reviewer-prompt.md`: starting prompt for each isolated reviewer.
-- `templates/final-consensus-report-template.md`: final report structure for root synthesis.
-- `templates/normalized-finding.schema.yaml`: normalized finding shape for synthesis.
-- `checklists/root-synthesis-checklist.md`: checklist to use after all reviewer reports complete.
-- `examples/code-review.config.yaml`: sample identical-reviewer configuration for branch or code review.
-- `examples/general-audit.config.yaml`: sample identical-reviewer configuration for broad audits.
-
-Load examples only when the user asks for configuration help or when a concrete example
-would prevent ambiguity. Do not copy template placeholders into final reports.
+Do not copy template placeholders into final reports.
 
 ## Reviewer Modes
 
 ### Identical Reviewers
 
-Use `identical_reviewers` when the user wants several independent reviewers to assess the same target using the same criteria. This is the default and preferred mode for consensus, averaging results, same-task review, and independent duplicate review.
+Each reviewer receives the same target, criteria, focus, and allowed materials.
 
-Each reviewer receives the same task, target, review criteria, and allowed materials. They must still reason independently.
+Detection rate is meaningful as recurrence across comparable assignments.
+
+Context isolation does **not** imply statistically independent errors. Reviewers may still share a model, prompt, specification, source material, toolchain, or assumptions.
 
 ### Focused Reviewers
 
-Use `focused_reviewers` only when the user explicitly asks for different lenses, specialist reviewers, or broader coverage instead of repeated identical review.
+Use only when specialist lenses or broader coverage are explicitly requested.
 
-Assign each reviewer a primary lens. Example set for ten reviewers:
+Focused reviewers may report issues outside their assigned lens, but raw support percentages are normally not comparable because reviewers had different primary detection opportunities.
 
-```yaml
-reviewer_01: correctness
-reviewer_02: security
-reviewer_03: performance
-reviewer_04: maintainability
-reviewer_05: testing
-reviewer_06: architecture
-reviewer_07: data_integrity
-reviewer_08: deployment_risk
-reviewer_09: observability
-reviewer_10: documentation
-```
+Record positions and contradictions. Mark convergence `not_comparable` unless a genuinely common denominator exists.
 
-Focused reviewers may report any issue they find, even outside their assigned lens.
+## Reviewer Output Contract
 
-## Root Agent Workflow
-
-The root agent must follow this sequence.
-
-### 1. Define the audit plan
-
-Before launching reviewers, define:
-
-- Audit target
-- Audit type
-- Number of reviewers
-- Reviewer mode
-- Review focus for each reviewer
-- Quorum threshold
-- Output directory and file paths
-- Allowed materials
-- Disallowed materials
-- Final report path
-
-Create the output directory if needed.
-
-### 2. Launch independent reviewers
-
-Spawn the configured number of isolated subagents when the platform supports subagents.
-
-If true subagents are unavailable, emulate independence by running separate review passes and writing each pass to its own file before reading, comparing, or synthesizing any prior pass.
-
-Each reviewer receives only:
-
-- The audit target
-- The audit type
-- Its review focus
-- The review criteria
-- The allowed materials
-- The disallowed materials
-- Its assigned output path
-- The individual reviewer report template
-- The independence rules
-
-Each reviewer must not receive:
-
-- Other reviewer identities beyond neutral IDs
-- Other reviewer outputs
-- Root synthesis notes
-- Partial consensus
-- Any summary of another reviewer's findings
-
-### 3. Require individual Markdown reports
-
-Each reviewer writes exactly one self-contained Markdown report.
-
-Default paths:
+Each completed reviewer writes two durable artifacts:
 
 ```text
 ./audits/reviewer-01.md
-./audits/reviewer-02.md
-./audits/reviewer-03.md
-./audits/reviewer-04.md
-./audits/reviewer-05.md
+./audits/reviewer-01.findings.yaml
 ```
 
-### 4. Wait for all reports to complete
+The Markdown report is the human-readable forensic record. The YAML companion is a normalization aid and must represent the same findings, evidence, assumptions, and severities.
 
-The root agent must not begin synthesis until all expected reviewer files are complete, or until a reviewer failure is explicitly recorded.
+If the two conflict, root synthesis must inspect the discrepancy rather than silently trusting either.
 
-The root agent must not read partial reviewer output.
+Reviewer artifacts are provenance and must never be deleted automatically. Cleanup requires an explicit user request.
 
-### 5. Read and normalize findings
+## Root Workflow
 
-After all individual reports are complete, read every completed reviewer report.
+### 1. Plan
 
-Normalize every finding into this structure:
+Before launching reviewers, define the target, type, reviewer count/mode/focus, descriptive convergence threshold, allowed/disallowed materials, both reviewer output paths, final report path, and known common-mode dependencies.
+
+Create the output directory before launching reviewers so reviewers do not need to inspect or manage the shared directory.
+
+### 2. Launch isolated reviewers
+
+Use true isolated subagents when available.
+
+If subagents are unavailable, emulate independence by running separate passes and writing both artifacts for each pass before reading, comparing, or synthesizing any prior pass.
+
+Each reviewer receives only its target, criteria, focus, materials, assigned paths, reviewer prompt/schema, and independence rules.
+
+### 3. Require terminal completion
+
+A reviewer should not report successful completion until both assigned artifacts are written and it has stopped auditing.
+
+The root records the actual outcome. If a reviewer finishes a complete, self-contained Markdown audit but its structured companion is missing or malformed, record the artifact defect; the Markdown audit may remain eligible and can be normalized manually after the isolation barrier opens. An incomplete Markdown audit is not an eligible completed review.
+
+### 4. Wait for every terminal outcome
+
+Do not synthesize until each requested reviewer is completed, failed, or excluded.
+
+Do not read partial reviewer output.
+
+When practical, replace a failed reviewer with a fresh isolated reviewer before synthesis if that preserves the requested review count without exposing peer results.
+
+### 5. Record reviewer coverage
+
+Record coverage before interpreting findings:
 
 ```yaml
-canonical_title: ""
-category: ""
-severity: "critical | high | medium | low | informational"
-reviewers_supporting: []
-reviewers_noting_related_issue: []
-support_count: 0
-total_reviewers: 0
-support_ratio: 0.0
-quorum_status: "unanimous | strong_consensus | meets_quorum | split | below_quorum | minority_high_severity | likely_false_positive"
-evidence_summary: ""
-root_verification: "verified | partially_verified | contradicted | not_verified | unable_to_verify"
-confidence_rating: 0
-recommended_action: ""
+reviewer_coverage:
+  requested: 5
+  completed: 3
+  eligible: 3
+  failed: 2
+  excluded: 0
+  completion_ratio: 0.60
+  eligible_ratio: 0.60
 ```
 
-### 6. Deduplicate carefully
+`eligible` means a completed reviewer valid for synthesis after integrity checks.
 
-Treat findings as the same issue only when they describe the same underlying problem.
+Never hide missing review capacity by reporting only `3/3 = 100%`.
 
-Do merge:
+If one eligible reviewer remains, root may verify and report findings but reviewer convergence is unavailable. With zero eligible reviewers, synthesis is impossible.
 
-- Different wording for the same bug
-- Different symptoms of the same root cause, when evidence supports a shared cause
-- Same issue reported at the same location with different severity estimates
+Do not use a universal minimum such as "three reviewers" as a proxy for quality.
 
-Do not merge:
+### 6. Normalize every distinct assertion
 
-- Different bugs in the same file
-- Different security risks in the same feature
-- General category overlap without a shared underlying problem
-- Findings with materially different causes or fixes
+After the isolation barrier opens, read every eligible Markdown report and structured companion.
 
-When uncertain, keep findings separate and note the uncertainty.
+For each normalized finding, assign every eligible reviewer exactly one position:
 
-### 7. Determine quorum
+- `supports`: explicitly supports the same underlying assertion;
+- `contradicts`: explicitly evaluates and rejects that assertion or supplies counter-evidence;
+- `related`: discusses related evidence without taking a position on the same assertion;
+- `not_observed`: provides no position.
 
-Calculate:
+Silence is `not_observed`, never `contradicts`.
+
+### 7. Deduplicate semantically
+
+Merge only findings that assert the same underlying problem.
+
+Do not merge merely because findings share a title, category, file, source, symptom, or recommended fix. If the shared root cause is uncertain, keep them separate and record the uncertainty.
+
+### 8. Measure convergence without turning it into truth
+
+For comparable identical reviewers:
 
 ```text
-support_ratio = support_count / total_completed_reviewers
+detection_rate = supporting_reviewers / eligible_completed_reviewers
 ```
 
-A finding meets quorum when:
+This is recurrence/detection frequency.
+
+When at least one reviewer explicitly supports or contradicts:
 
 ```text
-support_ratio >= quorum_threshold
+position_agreement = supporting_reviewers / (supporting_reviewers + contradicting_reviewers)
 ```
 
-Default quorum threshold is `0.60`.
+This excludes `not_observed` and `related`.
 
-Useful labels:
+Use descriptive labels:
 
-```text
-10/10 = unanimous
-8/10 or 9/10 = strong consensus
-6/10 or 7/10 = quorum-backed
-5/10 = split finding
-2/10 to 4/10 = minority finding
-1/10 = isolated finding
-```
+- `unanimous_among_completed`: every eligible completed reviewer supports;
+- `recurrent`: detection rate is at or above `convergence_threshold`;
+- `limited`: more than one supports but the rate is below threshold;
+- `isolated`: exactly one supports;
+- `none`: no reviewer supports;
+- `not_comparable`: no meaningful common denominator.
 
-Adjust the examples proportionally for reviewer counts other than ten.
+Always show raw counts and reviewer coverage with the label.
 
-### 8. Assign confidence
+A finding can be recurrent and contradicted at the same time. Four supporters and one explicit contradictor is not a majority win.
 
-Assign confidence from 1 to 10.
+### 9. Assess evidence separately
 
-Confidence must consider:
+Use:
 
-- Support count
-- Support ratio
-- Quality and specificity of evidence
-- Whether the root agent directly verified the issue
-- Severity and practical impact
-- Whether reviewers disagreed on interpretation
-- Whether the finding depends on assumptions
-- Whether evidence contradicts the finding
+- `strong`: direct observation, successful reproduction, decisive code/data inspection, or a primary source directly establishes the material assertion with little inference;
+- `moderate`: specific evidence supports the assertion but material inference, environmental dependence, or unresolved limitations remain;
+- `weak`: incomplete, indirect, speculative, or mostly inferential;
+- `none`: no meaningful concrete support.
 
-Do not assign confidence from vote count alone.
+Track provenance roots where relevant.
 
-Rough guide:
+Five reviewers citing the same code location, specification, test, document, or external source are five independent reviewer observations, not five independent evidence sources.
 
-```text
-10/10: Unanimous, specific, well-evidenced, root-verified
-8-9/10: Strong consensus, well-evidenced, likely valid
-6-7/10: Meets quorum, plausible, some verification limits
-4-5/10: Split or uncertain, needs manual review
-2-3/10: Minority finding, weak evidence or unverified
-1/10: Isolated, speculative, or likely false positive
-```
+### 10. Preserve contradictions as defeaters
 
-A high-severity minority finding may receive a mid-level confidence rating if it has concrete evidence. A unanimous finding may be downgraded if the root agent cannot verify it or if the evidence is weak.
+An evidence-backed contradiction is qualitatively different from silence.
 
-### 9. Preserve important minority findings
+Record who contradicted the assertion, the counter-evidence, its strength/provenance, and whether root verification resolved it.
 
-Do not discard a finding only because it failed quorum.
+A credible unresolved contradiction prevents the finding from being presented as settled regardless of vote count.
 
-Include a minority finding when:
+Majority vote must never erase material counter-evidence.
 
-- Severity is at or above `minority_severity_floor`
-- Evidence is specific and plausible
-- The downside risk of ignoring it is high
-- The root agent can partially or fully verify it
-- It identifies an issue class other reviewers may not have focused on
+### 11. Perform root verification
 
-Put these in `Strong Minority Findings`, not in `Consensus Findings`.
+The root must inspect original allowed materials and use available tools to challenge meaningful findings. It is not merely a vote counter or LLM judge.
 
-### 10. Write the final consensus report
+Verification is especially required for:
 
-The final report must be a root-level synthesis, not a concatenation of individual reports.
+- critical/high findings;
+- findings that drive recommended action;
+- isolated/limited findings with concrete evidence;
+- explicit contradictions;
+- recurrent findings relying on a shared source or shared inference;
+- disagreements that may be assumption-driven.
 
-Default output:
+For code, inspect surrounding code, reproduce behavior, run focused tests, trace callers/data flow, and inspect relevant diffs/history when material.
 
-```text
-./audits/final-consensus-audit.md
-```
+For documents/research, inspect primary sources, validate quotations/locators, distinguish fact from inference, identify shared provenance, and investigate contradictory evidence.
 
-The final report must include:
+Record:
 
-- Audit summary
-- Configuration used
-- Consensus findings
-- Strong minority findings, if any
-- Split or disputed findings, if any
-- Likely false positives, if useful
-- Final prioritized recommendation
-- List of individual audit files reviewed
-- Caveats about incomplete reviewers or verification limits
+- `verified`
+- `partially_verified`
+- `contradicted`
+- `unable_to_verify`
+- `not_attempted`
 
-## Code Review Criteria
+Use `not_attempted` only for low-materiality findings that do not drive action.
 
-When `audit_type` is `code_review` or `branch_review`, reviewers should examine:
+Root verification should use evidence outside reviewer prose whenever possible. Having the same model merely reread or self-critique the reports is not independent verification.
 
-- Correctness
-- Regressions
-- Edge cases
-- Security risks
-- Data integrity
-- Error handling
-- Tests
-- Performance
-- API compatibility
-- Migration or deployment risk
-- Maintainability
-- Observability
-- Documentation impact
+### 12. Keep severity separate
 
-Reviewers should cite specific files, functions, line ranges, diffs, commits, tests, or commands where possible.
+Severity answers:
 
-Prioritize actionable issues over style preferences.
+> How bad would this be if true?
 
-## General Audit Criteria
+Evidence and verification answer:
 
-When `audit_type` is `general_audit`, reviewers should examine:
+> How much reason do we have to treat it as substantiated?
 
-- Internal consistency
-- Completeness
-- Factual or logical errors
-- Missing requirements
-- Risk areas
-- Ambiguity
-- Unsupported assumptions
-- Practical implementation concerns
-- Recommendations for improvement
+Never increase evidence strength because a claim is severe. Severity may increase verification effort and remediation urgency only.
 
-The final report should distinguish defects, risks, recommendations, and optional improvements.
+### 13. Use categorical final disposition
+
+Do not assign a 1-10 confidence rating or an uncalibrated probability.
+
+Use:
+
+- `verified`: root substantiates the material assertion;
+- `partially_verified`: root substantiates only part;
+- `contested`: credible support and credible counter-evidence remain unresolved;
+- `unverified`: root did not substantiate the assertion;
+- `rejected`: root verification or stronger counter-evidence materially refutes it.
+
+Convergence informs the explanation but is not an acceptance rule.
+
+### 14. Reconcile isolated findings
+
+Every distinct finding must be normalized.
+
+An isolated finding is low recurrence, not automatically weak evidence. If it has concrete evidence or material potential impact, root must investigate it.
+
+Do not discard a finding solely because it falls below the convergence threshold.
+
+### 15. Record assumptions and correlated-failure risks
+
+When reviewers disagree, determine whether the difference comes from conflicting evidence, different assumptions, different interpretations, different environments/configurations, or an actual contradiction.
+
+Record unresolved assumptions.
+
+Where material, note common-mode risks such as the same model/model family, prompt, specification, external source, toolchain, fixture/test, or implicit assumption.
+
+Optional model/provider heterogeneity may reduce some common-mode risks, but it changes the ensemble and does not guarantee independent errors. Do not require it by default.
+
+### 16. Write the final report for action
+
+Use `templates/final-consensus-report-template.md`.
+
+Make reviewer coverage, convergence, evidence strength, contradiction, root verification, severity, assumptions, and final disposition separately visible.
+
+Organize by epistemic status:
+
+1. Verified actionable findings
+2. Partially verified findings
+3. Contested findings
+4. Unverified recurrent findings
+5. Unverified limited/isolated findings
+6. Rejected findings when useful
+
+Within a section, severity can prioritize remediation.
+
+## Review Criteria
+
+For code/branch review, examine correctness, regressions, edge cases, security, data integrity, error handling, tests, performance, API compatibility, migration/deployment risk, maintainability, observability, and documentation impact.
+
+For general audits, examine internal consistency, completeness, factual/logical errors, missing requirements, risks, ambiguity, unsupported assumptions, and practical implementation concerns.
+
+Reviewers should cite specific locations and prioritize actionable issues over style preferences.
 
 ## Failure Handling
 
-If a reviewer fails to complete the audit:
+If a reviewer fails:
 
-1. Record the failure.
-2. Continue only if at least three completed reports remain, unless the user explicitly requested fewer reviewers.
-3. Base support ratios on completed reports, not originally requested reports.
-4. Include the failure in final caveats.
+1. Record the failure without reading completed peer output.
+2. Replace with a fresh isolated reviewer when practical.
+3. Wait for all requested/replacement reviewers to become terminal.
+4. Record requested, completed, eligible, failed, and excluded counts.
+5. Never change the denominator silently.
+6. Do not claim convergence with only one eligible reviewer.
+7. Stop if zero eligible reviewers remain.
 
-If fewer than three reviewers complete their reports, warn that consensus quality is weak.
-
-If a reviewer appears to have read or copied another reviewer's output, exclude that report from synthesis and explain why.
+Exclude a reviewer that appears to have read or copied peer work. Preserve the excluded artifact for provenance unless the user explicitly requests cleanup.
 
 ## Final User Response
 
-After completing the audit, respond with:
+Return:
 
-1. Path to the final consensus report
-2. Brief summary of top consensus findings
-3. Any high-severity minority findings
-4. Caveats about incomplete reviewers, verification limits, or low quorum
+1. path to the final report;
+2. highest-priority verified or contested findings;
+3. any verified isolated finding that materially changes the result;
+4. reviewer coverage and important verification/correlation limits.
 
-Do not paste all individual reports into the final response unless the user asks.
+Do not paste all individual reports unless asked.
 
-Finally, remove the individual audits from disk IF they are no longer needed and have been properly summarized by the final output.
+Never automatically delete reviewer reports or structured findings.
