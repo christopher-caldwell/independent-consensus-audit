@@ -1,245 +1,182 @@
 # Independent Consensus Audit
 
-Independent Consensus Audit is a Codex skill for running several isolated reviews of the same target and turning them into one evidence-based consensus report.
+Independent Consensus Audit asks several fresh investigators to examine the same engineering question, then gives their completed reports to a separate reconciler. The result is one Markdown answer with its evidence, disagreements, coverage gaps, and an audit confidence score.
 
-It is designed for situations where a single review is too vulnerable to anchoring, blind spots, or individual judgment. Each reviewer inspects the target independently, writes a private Markdown report, and finishes before the root agent reads any reviewer output. The root agent then normalizes and deduplicates the findings, checks which findings meet quorum, verifies important claims, preserves credible minority concerns, and writes a final prioritized audit.
+You can also skip the investigation step and supply reports you already have. This is useful when Codex, Claude Code, and Cursor have each produced a separate Discovery document and you want one technical direction instead of three competing drafts.
 
-The skill works for code and branch reviews, security and architecture audits, documents and policies, product or UX reviews, research artifacts, and other targets where multiple independent judgments are useful.
+The tool does not treat agreement as proof. A minority finding can decide the answer when its evidence is stronger. Missing checks stay visible, imported claims remain imported testimony, and a failed run cannot publish a reassuring score.
 
-## Why use it?
+## What you get
 
-A normal multi-agent review can accidentally become groupthink: early findings shape later reviewers, similar wording is mistaken for independent support, or majority votes are treated as proof. This skill makes independence an explicit part of the workflow.
+Each run writes a directory under `audits/` unless the request chooses another location. Its main artifact is `final.md`. The same directory retains the request, frozen source identity, original reports, model attempts, accepted structured records, score calculation, and integrity manifest.
 
-Its key properties are:
+A completed audit can still be inconclusive or have low confidence. That is a valid result. It means the available material did not support a stronger answer.
 
-- **Independent first-pass reviews.** Reviewers cannot read or coordinate with peers.
-- **Configurable consensus.** Choose the reviewer count and quorum threshold.
-- **Evidence-aware confidence.** Confidence uses evidence and root verification, not vote count alone.
-- **Careful deduplication.** Related wording is merged only when it describes the same underlying issue.
-- **Minority-risk preservation.** Credible high-severity concerns can survive even when they miss quorum.
-- **Auditable output.** Individual reports and the final synthesis are plain Markdown.
+## How the pieces fit
 
-## How it works
+There is one shared workflow and one application:
 
 ```text
-Audit target
-    |
-    +--> Reviewer 01 --> isolated Markdown report --+
-    +--> Reviewer 02 --> isolated Markdown report --+
-    +--> Reviewer 03 --> isolated Markdown report --+--> Root synthesis
-    +--> Reviewer 04 --> isolated Markdown report --+       |
-    +--> Reviewer 05 --> isolated Markdown report --+       +--> Consensus findings
-                                                            +--> Strong minority findings
-                                                            +--> Disputed findings
-                                                            +--> Prioritized recommendations
+Codex skill       \
+Claude Code skill  -> consensus-audit CLI -> local Codex CLI -> retained run bundle
+Cursor skill      /
 ```
 
-The root agent follows five broad phases:
+Codex, Claude Code, and Cursor are hosts for the same skill. They prepare the request, invoke the application, and present the retained result. Managed investigator and reconciler calls use the local Codex CLI through the account already configured on the machine.
 
-1. Define the target, reviewer mode, criteria, quorum, allowed materials, and output paths.
-2. Launch isolated reviewers with equivalent instructions or explicitly assigned specialist lenses.
-3. Wait until every expected report is complete or its failure is recorded.
-4. Read, normalize, deduplicate, compare, and directly verify the findings.
-5. Write a root-level synthesis instead of concatenating reviewer reports.
+The audit runtime does not require a Claude subscription. Using Claude Code as the host still requires access to Claude Code. Cursor also remains a host rather than a separate model provider. Version 1 has one execution adapter: Codex.
 
-The independence boundary matters: reviewers must not inspect the audit output directory or receive peer findings, partial consensus, or root synthesis notes.
+The instruction layout follows the same split:
 
-## Installation
+- [`AGENT_GUIDE.md`](AGENT_GUIDE.md) contains the shared usage workflow.
+- [`AGENTS.md`](AGENTS.md) contains Codex installation and invocation details.
+- [`CLAUDE.md`](CLAUDE.md) contains Claude Code installation and invocation details.
+- [`.cursor/rules/independent-consensus-audit.mdc`](.cursor/rules/independent-consensus-audit.mdc) contains Cursor installation and invocation details.
+- [`skills/independent-consensus-audit/SKILL.md`](skills/independent-consensus-audit/SKILL.md) is the small installed loader that finds the CLI and reads its bundled guide.
 
-### Clone into your Codex skills directory
+The host files do not carry separate copies of the audit workflow.
 
-```bash
-git clone <repository-url> ~/.codex/skills/independent-consensus-audit
-```
+## Install from an agent chat
 
-Restart Codex or begin a new session so the skill catalog is refreshed.
-
-### Develop from a working clone
-
-Clone the repository wherever you keep source projects, then symlink it into the Codex skills directory:
-
-```bash
-git clone <repository-url> ~/Code/projects/independent-consensus-audit
-ln -s ~/Code/projects/independent-consensus-audit \
-  ~/.codex/skills/independent-consensus-audit
-```
-
-If that destination already exists, move or remove it first. Do not overlay a symlink on an existing installed copy.
-
-## Usage
-
-Invoke the skill by name and describe the audit target:
+Open this checkout in Codex, Claude Code, or Cursor and say:
 
 ```text
-Use $independent-consensus-audit to review the current branch against main.
+Install this skill for me.
 ```
+
+The agent installs the application through uv, places the shared skill in its personal skill directory, and verifies both from outside the checkout. The full procedure is in the [agent installation guide](docs/guides/agent-installation.md).
+
+After installation, start a fresh session and invoke:
+
+- `$independent-consensus-audit` in Codex
+- `/independent-consensus-audit` in Claude Code or Cursor
+
+One uv tool installation can serve all three hosts on the same machine.
+
+### Updating
+
+Open the checkout in the host you want to refresh and say:
 
 ```text
-Use $independent-consensus-audit to audit docs/security-policy.md for gaps and contradictions.
+Update Independent Consensus Audit from this checkout.
 ```
+
+That updates the shared uv tool and the current host's skill copy. To refresh every existing Codex, Claude Code, and Cursor installation on the machine, say:
 
 ```text
-Run an independent consensus audit of this architecture proposal with 7 identical reviewers and a 70% quorum.
+Update Independent Consensus Audit from this checkout for every installed host.
 ```
 
-Unless you specify otherwise, the skill uses five identical reviewers, a 60% quorum, includes credible high-severity minority findings, and writes results under `./audits` relative to the active workspace or audit target.
+The update checks each normal host location and changes only matching skill copies that already exist. It does not install the skill into a new host. Each refreshed host may need a new session before it sees the updated instructions.
 
-### Default configuration
+## Run from the checkout
 
-```yaml
-audit_target: "<inferred from the request>"
-audit_type: "general_audit"
-reviewer_count: 5
-reviewer_mode: "identical_reviewers"
-quorum_threshold: 0.60
-include_minority_findings: true
-minority_severity_floor: "high"
-output_directory: "./audits"
-individual_report_pattern: "reviewer-{number}.md"
-final_report_filename: "final-consensus-audit.md"
+You need Python 3.11 or newer, uv, and a working local Codex CLI account.
+
+```sh
+uv sync
+uv run consensus-audit --version
+uv run consensus-audit guide
+uv run consensus-audit run ./examples/investigation-request.md
 ```
 
-See [`examples/code-review.config.yaml`](examples/code-review.config.yaml) and [`examples/general-audit.config.yaml`](examples/general-audit.config.yaml) for complete examples.
+To install the command yourself:
 
-## Reviewer modes
-
-### Identical reviewers
-
-This is the default and the right choice when you want repeated independent judgment. Every reviewer receives the same target, criteria, focus, and allowed materials. Agreement is therefore meaningful evidence of reproducibility across independent reviews.
-
-Use it for requests such as:
-
-- “Have five reviewers independently review this diff.”
-- “Average several independent audits.”
-- “Find consensus on the most important defects.”
-
-### Focused reviewers
-
-Use focused reviewers only when you explicitly want specialist lenses or broader coverage. For example:
-
-```yaml
-reviewer_mode: "focused_reviewers"
-review_focuses:
-  reviewer_01: correctness
-  reviewer_02: security
-  reviewer_03: performance
-  reviewer_04: maintainability
-  reviewer_05: testing
+```sh
+uv tool install /absolute/path/to/independent-consensus-audit
+consensus-audit --version
 ```
 
-Focused review is valuable for coverage, but support ratios should be interpreted carefully: reviewers were asked different primary questions. Reviewers may still report important issues outside their assigned lens.
+The installed package includes its prompts and shared guide. It does not depend on the checkout or current working directory.
 
-## Configuration reference
+## Three common uses
 
-| Field | Meaning |
-| --- | --- |
-| `audit_target` | Branch, diff, repository, file, document, system, or other artifact being reviewed. |
-| `audit_type` | Review criteria family, such as `branch_review`, `security_audit`, or `general_audit`. |
-| `reviewer_count` | Number of independent review passes requested. |
-| `reviewer_mode` | `identical_reviewers` or explicitly requested `focused_reviewers`. |
-| `quorum_threshold` | Minimum support ratio required for a consensus finding. |
-| `include_minority_findings` | Whether credible findings below quorum may appear separately. |
-| `minority_severity_floor` | Minimum severity normally considered for minority inclusion. |
-| `output_directory` | Directory for individual reports and the final synthesis. |
-| `individual_report_pattern` | Filename pattern for isolated reviewer reports. |
-| `final_report_filename` | Filename for the root synthesis. |
-| `allowed_materials` | Sources each reviewer is permitted to inspect. |
-| `disallowed_materials` | Sources reviewers must not inspect, especially peer reports. |
-| `review_focuses` | Per-reviewer focus, repeated for identical mode or specialized in focused mode. |
+### Check an implementation against a specification
 
-Relative output paths resolve from the active workspace or audit target root, never from the installed skill directory.
+Give the request a `target` and a `spec`. The final answer identifies demonstrated violations, supported requirements, and requirements that were not established. One concrete counterexample can support a strong finding of nonconformance without pretending the audit found every defect.
 
-## Quorum and confidence
+Start with [`examples/conformance-request.md`](examples/conformance-request.md).
 
-Support is calculated from completed, eligible reviewers:
+### Investigate a bug or performance problem
+
+Describe the observed symptom and label suspected causes as hypotheses. Investigators consider alternatives and state which observations would separate them. If the audit lacks runtime evidence, the final answer says so instead of presenting static inspection as measurement.
+
+Start with [`examples/investigation-request.md`](examples/investigation-request.md).
+
+### Reconcile existing reports
+
+List the reports under `inputs`. The tool preserves their original bytes, normalizes each document separately, and reconciles the results without launching another full reviewer cohort. Duplicate documents do not create extra votes.
+
+Start with [`examples/synthesis-request.md`](examples/synthesis-request.md).
+
+## Request format
+
+An audit request is Markdown with YAML frontmatter:
+
+```markdown
+---
+schema_version: 1
+artifact: audit-request
+target: ../my-project
+spec: ../my-project/specs/feature.md
+reviewers: 5
+sources:
+  - ./observations.txt
+output_dir: ./audits
+---
+
+Determine whether the implementation satisfies the specification.
+Identify concrete deviations and requirements that cannot yet be verified.
+```
+
+Only `schema_version` and `artifact` are required. The Markdown body must contain the actual question.
+
+Relative paths are resolved from the request file, not from the shell directory. Without `inputs`, `reviewers` defaults to 5 and an omitted `target` defaults to the request directory. When `inputs` is present, `reviewers` is invalid because supplied reports replace the initial reviewer cohort.
+
+Unknown fields, duplicate YAML keys, unsafe YAML tags, empty input lists, invalid ranges, and old quorum configuration fail before any model call.
+
+## Commands
 
 ```text
-support_ratio = support_count / total_completed_reviewers
+consensus-audit run REQUEST.md
+consensus-audit guide
+consensus-audit inspect RUN_DIR [--verify]
+consensus-audit rescore RUN_DIR --policy pilot-v1
 ```
 
-A finding meets quorum when its support ratio is at least `quorum_threshold`. With five reviewers and the default threshold, three supporting reviewers are enough.
+`inspect` reads the retained result. With `--verify`, it recalculates artifact digests without calling a model. `rescore` also runs offline and writes a new score artifact without changing the original report.
 
-Quorum is not the same as confidence. The final confidence rating also considers:
+Exit code 0 means the tool produced a valid final audit, including a limited or inconclusive one. Exit code 2 means the request was invalid. Exit code 3 reports an operational or capability failure. Exit code 4 means integrity or schema validation prevented a trustworthy result.
 
-- specificity and quality of evidence;
-- direct verification by the root agent;
-- disagreement about cause or impact;
-- assumptions and unavailable context;
-- contradicting evidence;
-- severity and practical consequences.
+## Confidence means audit confidence
 
-A unanimous but vague finding can receive lower confidence. A concrete, root-verified security concern raised by one reviewer can remain a strong minority finding with meaningful confidence.
+The `pilot-v1` policy returns one of six scores: 0, 25, 50, 70, 85, or 95. It never returns 100.
 
-## Output
+The score describes support for the final answer within its stated scope. It is not a probability, a certification, or a percentage of the specification implemented. The policy is deterministic for the same accepted record, but it is not empirically calibrated.
 
-The default output layout is:
+The broad shape is simple:
 
-```text
-audits/
-├── reviewer-01.md
-├── reviewer-02.md
-├── reviewer-03.md
-├── reviewer-04.md
-├── reviewer-05.md
-└── final-consensus-audit.md
+- 25 means the answer is still an assertion without adequate inspectable support.
+- 50 means traceable reasoning or testimony exists, but primary support remains indirect or unverified.
+- 70 means direct source material or observed behavior supports the scoped claim.
+- 85 adds at least two eligible separated assessments, relevant coverage, and no unresolved material objection.
+- 95 is reserved for a narrow decisive demonstration or counterexample that a fresh assessor checked.
+
+When the answer depends on several claims, the weakest essential claim controls the score. Many easy facts cannot average away one unresolved dependency.
+
+## Boundaries worth knowing
+
+Managed roles receive a bounded copy of the permitted material inside their prompt. Their shell, file, browser, app, skill, and subagent tools are disabled. This keeps peer reports and controller state out of reach without relying on operating system specific sandbox code.
+
+That choice also means managed roles cannot run tests, benchmarks, or profilers. When runtime evidence is necessary, the audit must remain limited and name the missing observation. Imported statements such as “tests passed” remain testimony unless the run contains the corresponding captured evidence.
+
+Run bundles can contain private source code and supplied documents. Keep them local unless you have reviewed what they contain.
+
+## Development
+
+```sh
+uv run pytest -q
+uv build
 ```
 
-The final report includes:
-
-- an audit summary and the configuration used;
-- quorum-backed consensus findings;
-- strong minority findings, when warranted;
-- split or disputed findings;
-- useful likely-false-positive notes;
-- prioritized recommendations;
-- verification caveats and reviewer failures;
-- the list of reviewer reports included in synthesis.
-
-Individual reports may be removed after they have been completely summarized and are no longer needed. Keep them when traceability, later re-analysis, or regulated review requires the original evidence trail.
-
-## Failure handling
-
-If a reviewer fails, the root agent records the failure and calculates support using completed eligible reviewers. The audit normally continues only when at least three reports remain, unless the user intentionally requested fewer. If fewer than three complete, the final output warns that consensus quality is weak.
-
-A report should be excluded if the reviewer appears to have read or copied another reviewer’s work, because it no longer represents independent evidence.
-
-## Repository layout
-
-```text
-.
-├── SKILL.md
-├── agents/
-│   └── openai.yaml
-├── checklists/
-│   └── root-synthesis-checklist.md
-├── examples/
-│   ├── code-review.config.yaml
-│   └── general-audit.config.yaml
-└── templates/
-    ├── final-consensus-report-template.md
-    ├── individual-reviewer-prompt.md
-    └── normalized-finding.schema.yaml
-```
-
-- [`SKILL.md`](SKILL.md) contains the authoritative orchestration rules.
-- [`templates/individual-reviewer-prompt.md`](templates/individual-reviewer-prompt.md) defines the isolation contract and reviewer report format.
-- [`templates/final-consensus-report-template.md`](templates/final-consensus-report-template.md) defines the synthesis structure.
-- [`templates/normalized-finding.schema.yaml`](templates/normalized-finding.schema.yaml) defines the common finding representation.
-- [`checklists/root-synthesis-checklist.md`](checklists/root-synthesis-checklist.md) guards the root-only comparison and verification phase.
-
-## Design principles
-
-1. Independence comes before consensus.
-2. Evidence matters more than voting.
-3. Similar wording does not automatically mean the same root cause.
-4. A missed quorum is not proof that a risk is harmless.
-5. The final report is a judgment-bearing synthesis, not a report bundle.
-6. Reviewer failures and verification limits belong in the result.
-
-## Contributing
-
-Changes to the workflow should preserve reviewer isolation and root-only synthesis. When editing templates or examples, keep them consistent with the authoritative rules in `SKILL.md`. Before committing, check that YAML files parse, Markdown links resolve, and example paths do not allow reviewers to read audit outputs.
-
-## License
-
-Licensed under the [MIT License](LICENSE).
+The ordinary test suite uses scripted role outputs and does not require a live model. Fixture success proves the controller mechanics, not model judgment. See the [implementation delta](docs/implementation-delta.md) for the changes from the original instruction only repository.

@@ -1,0 +1,20 @@
+---
+description: Install the Independent Consensus Audit skill or load its shared workflow.
+alwaysApply: true
+---
+
+# Independent Consensus Audit entry point for Cursor
+
+## Install or update the skill
+
+Treat “install this skill”, “install Independent Consensus Audit”, or “update Independent Consensus Audit” as a request to install it for Cursor. Follow [the shared installation procedure](../../docs/guides/agent-installation.md), using this checkout as the source. Installation does not start an audit.
+
+“Update Independent Consensus Audit” refreshes the shared uv tool and this Cursor skill. If the user says “update Independent Consensus Audit for every installed host,” also refresh matching Codex and Claude Code skill directories that already exist. Do not create a new host installation unless the user asks for it. When updating from an installed skill rather than an open checkout, use the source recorded in its `INSTALLATION.md`.
+
+Install `skills/independent-consensus-audit/` at `~/.cursor/skills/independent-consensus-audit/`, or at `<project>/.cursor/skills/independent-consensus-audit/` when explicitly requested. Inspect compatible `.agents`, `.claude`, and `.codex` locations before creating a duplicate. Do not turn the workflow into an always-applied rule or legacy command.
+
+After verification, tell the user to invoke `/independent-consensus-audit` in a fresh Cursor chat. Cursor hosts the skill; managed audit roles still use the local Codex CLI.
+
+## Run an audit
+
+Read [AGENT_GUIDE.md](../../AGENT_GUIDE.md), or run `consensus-audit guide` when using an installed copy. Ordinary repository work does not start an audit.

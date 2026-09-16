@@ -1,0 +1,32 @@
+[build-system]
+requires = ["flit_core>=3.11,<4"]
+build-backend = "build_backend"
+backend-path = ["."]
+
+[project]
+name = "independent-consensus-audit"
+version = "0.1.0"
+description = "Evidence-aware independent engineering audits"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0.2,<7",
+]
+
+[project.scripts]
+consensus-audit = "consensus_audit.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3,<9"]
+
+[tool.flit.module]
+name = "consensus_audit"
+
+[tool.flit.sdist]
+include = ["build_backend.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

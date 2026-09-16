@@ -1,4 +1,6 @@
-.DS_Store
-audits/
-*.swp
-*.tmp
+.venv/
+dist/
+artifacts/
+__pycache__/
+.pytest_cache/
+*.pyc

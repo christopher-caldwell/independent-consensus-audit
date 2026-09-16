@@ -1,0 +1,4 @@
+interface:
+  display_name: "Independent Consensus Audit"
+  short_description: "Produce traceable evidence-aware audit answers"
+  default_prompt: "Use $independent-consensus-audit to preserve my question and sources, invoke the installed consensus-audit CLI, and report the retained result and limitations."
