@@ -9,6 +9,11 @@ from .storage import canonical_digest
 
 POLICY_TEXT = "pilot-v1: tiers 0/25/50/70/85/95; minimum essential claim; material-objection and broad-coverage caps"
 POLICY_DIGEST = hashlib.sha256(POLICY_TEXT.encode()).hexdigest()
+DISCOVERY_POLICY_TEXT = (
+    "discovery-consensus-v1: finalized Discovery exports are verified opinions; tiers reflect per-claim report agreement, "
+    "minimum adopted strict-majority claim, material-disagreement and participation caps; no underlying evidence re-audit"
+)
+DISCOVERY_POLICY_DIGEST = hashlib.sha256(DISCOVERY_POLICY_TEXT.encode()).hexdigest()
 
 
 def score(recon: Reconciliation, *, requested: int, completed: int, independence: str) -> ScoreResult:
@@ -51,3 +56,68 @@ def score(recon: Reconciliation, *, requested: int, completed: int, independence
     return ScoreResult(policy_digest=POLICY_DIGEST, input_record_digest=canonical_digest(recon.model_dump()),
                        scope=recon.answer.scope, answer_basis=recon.answer.answer_basis,
                        essential_claim_ids=recon.answer.decisive_claim_ids, per_claim=per_claim, caps=caps, final_score=result)
+
+
+def score_discovery_consensus(recon: Reconciliation, *, requested: int, completed: int,
+                              independence: str, report_ids: set[str]) -> ScoreResult:
+    if recon.answer.result_kind == "inconclusive" or not recon.answer.decisive_claim_ids:
+        return ScoreResult(
+            policy_id="discovery-consensus-v1", policy_digest=DISCOVERY_POLICY_DIGEST,
+            input_record_digest=canonical_digest(recon.model_dump()), scope=recon.answer.scope,
+            answer_basis=recon.answer.answer_basis, essential_claim_ids=recon.answer.decisive_claim_ids,
+            per_claim={}, caps=[], final_score=0,
+        )
+    claims = {claim.id: claim for claim in recon.canonical_claims}
+    per_claim: dict[str, dict] = {}
+    caps: list[dict] = []
+    scores: list[int] = []
+    for claim_id in recon.answer.decisive_claim_ids:
+        claim = claims[claim_id]
+        relations = {relation.report_id: relation.relation for relation in claim.report_relations if relation.report_id in report_ids}
+        supports = sum(relation == "supports" for relation in relations.values())
+        contradicts = sum(relation == "contradicts" for relation in relations.values())
+        related = sum(relation == "related" for relation in relations.values())
+        not_observed = completed - supports - contradicts - related
+        unanimous = completed > 0 and supports == completed
+        majority = supports > completed / 2
+        if unanimous and completed >= 3:
+            granted = 85
+        elif unanimous or (majority and contradicts == 0):
+            granted = 70
+        elif majority:
+            granted = 50
+        elif supports:
+            granted = 25
+        else:
+            granted = 0
+        relevant_open = any(
+            issue.material_to_answer and issue.state in {"open", "deferred"}
+            and (claim_id in issue.source_candidate_or_question_refs or not issue.source_candidate_or_question_refs)
+            for issue in recon.issues
+        )
+        if relevant_open and granted > 50:
+            granted = 50
+            caps.append({"claim_id": claim_id, "cap": 50, "reason": "unresolved material disagreement"})
+        if independence == "unknown" and granted > 70:
+            granted = 70
+            caps.append({"claim_id": claim_id, "cap": 70, "reason": "historical independence is unknown"})
+        per_claim[claim_id] = {
+            "support_level": "verified_opinion_consensus",
+            "supports": supports,
+            "contradicts": contradicts,
+            "related": related,
+            "not_observed": not_observed,
+            "completed_reports": completed,
+            "granted_tier": granted,
+        }
+        scores.append(granted)
+    result = min(scores)
+    if requested > completed and result > 50:
+        result = 50
+        caps.append({"cap": 50, "reason": f"only {completed} of {requested} requested Discovery opinions completed"})
+    return ScoreResult(
+        policy_id="discovery-consensus-v1", policy_digest=DISCOVERY_POLICY_DIGEST,
+        input_record_digest=canonical_digest(recon.model_dump()), scope=recon.answer.scope,
+        answer_basis=recon.answer.answer_basis, essential_claim_ids=recon.answer.decisive_claim_ids,
+        per_claim=per_claim, caps=caps, final_score=result,
+    )

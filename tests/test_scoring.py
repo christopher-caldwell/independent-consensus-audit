@@ -1,7 +1,7 @@
 import pytest
 
 from consensus_audit.contracts import Reconciliation
-from consensus_audit.scoring import score
+from consensus_audit.scoring import score, score_discovery_consensus
 
 
 def reconciliation(*, level="direct", assessments=2, basis="bounded_claim", issues=None,
@@ -56,3 +56,40 @@ def test_unknown_import_independence_cannot_promote_by_multiplicity() -> None:
 
 def test_inconclusive_is_zero() -> None:
     assert score(reconciliation(result_kind="inconclusive"), requested=5, completed=5, independence="user_attested").final_score == 0
+
+
+def discovery_reconciliation(relations: list[str], issues=None) -> Reconciliation:
+    value = reconciliation(issues=issues)
+    data = value.model_dump()
+    report_relations = []
+    origin_claim_ids = []
+    dispositions = []
+    for index, relation in enumerate(relations, 1):
+        report_id = f"input-{index:02d}"
+        claim_id = f"{report_id}:c1"
+        report_relations.append({
+            "report_id": report_id, "relation": relation,
+            "evidence_refs": [] if relation == "not_observed" else [claim_id],
+        })
+        origin_claim_ids.append(claim_id)
+        dispositions.append({"source_claim_id": claim_id, "disposition": "accounted for"})
+    data["canonical_claims"][0]["origin_claim_ids"] = origin_claim_ids
+    data["canonical_claims"][0]["report_relations"] = report_relations
+    data["candidate_dispositions"] = dispositions
+    return Reconciliation.model_validate(data)
+
+
+def test_discovery_consensus_scores_verified_opinion_agreement() -> None:
+    recon = discovery_reconciliation(["supports", "supports", "supports"])
+    report_ids = {f"input-{index:02d}" for index in range(1, 4)}
+    unknown = score_discovery_consensus(recon, requested=3, completed=3, independence="unknown", report_ids=report_ids)
+    attested = score_discovery_consensus(recon, requested=3, completed=3, independence="user_attested", report_ids=report_ids)
+    assert unknown.final_score == 70 and unknown.policy_id == "discovery-consensus-v1"
+    assert attested.final_score == 85
+
+
+def test_discovery_consensus_preserves_material_disagreement() -> None:
+    recon = discovery_reconciliation(["supports", "supports", "contradicts"])
+    report_ids = {f"input-{index:02d}" for index in range(1, 4)}
+    result = score_discovery_consensus(recon, requested=3, completed=3, independence="user_attested", report_ids=report_ids)
+    assert result.final_score == 50

@@ -109,6 +109,8 @@ List the reports under `inputs`. The tool preserves their original bytes, normal
 
 Start with [`examples/synthesis-request.md`](examples/synthesis-request.md).
 
+For finalized Discovery runs, use `discovery_runs` rather than listing only their Markdown exports. This first-class workflow treats each finalized export as one verified opinion, retains only its four output artifacts, and finds the common ground among the opinions. It does not import underlying run artifacts or repeat Discovery's verification. The selected direction and its confidence use only adopted claims with strict-majority support; rejected alternatives and one-report optional details remain visible but cannot become decisive. It reports agreement separately from consensus confidence. Start with [`examples/discovery-synthesis-request.md`](examples/discovery-synthesis-request.md).
+
 ## Request format
 
 An audit request is Markdown with YAML frontmatter:
@@ -131,7 +133,9 @@ Identify concrete deviations and requirements that cannot yet be verified.
 
 Only `schema_version` and `artifact` are required. The Markdown body must contain the actual question.
 
-Relative paths are resolved from the request file, not from the shell directory. Without `inputs`, `reviewers` defaults to 5 and an omitted `target` defaults to the request directory. When `inputs` is present, `reviewers` is invalid because supplied reports replace the initial reviewer cohort.
+Relative paths are resolved from the request file, not from the shell directory. Without `inputs` or `discovery_runs`, `reviewers` defaults to 5 and an omitted `target` defaults to the request directory. When supplied reports are present, `reviewers` is invalid because they replace the initial reviewer cohort.
+
+`discovery_runs` is mutually exclusive with `inputs`, `reviewers`, `target`, `spec`, and `sources`. Each entry may be a Discovery run directory with exactly one complete export, or that export directory itself. The importer requires a finalized handoff and retains `technical-spec.md`, `discovery-summary.md`, `handoff.json`, and `evidence-manifest.json`. Those four files form one verified opinion and never become additional votes. Referenced run artifacts remain behind Discovery's verification boundary.
 
 Unknown fields, duplicate YAML keys, unsafe YAML tags, empty input lists, invalid ranges, and old quorum configuration fail before any model call.
 

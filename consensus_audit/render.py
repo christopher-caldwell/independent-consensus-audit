@@ -15,15 +15,34 @@ def render_report(run_id: str, report_id: str, role: str, round_no: int, report:
 
 
 def render_final(run_id: str, status: str, recon: Reconciliation, score: ScoreResult,
-                 requested: int, completed: int, failed: int, limitations: list[str], source_summary: str) -> str:
+                 requested: int, completed: int, failed: int, limitations: list[str], source_summary: str,
+                 workflow: str = "standard") -> str:
     lines = ["---", "schema_version: 1", "artifact: final-report", f"run_id: {run_id}", f"status: {status}",
              f"result_kind: {recon.answer.result_kind}", f"confidence: {score.final_score}",
-             "confidence_policy: pilot-v1", "confidence_calibrated: false", "---", "", "# Independent Consensus Audit", "",
+             f"confidence_policy: {score.policy_id}", "confidence_calibrated: false", "---", "", "# Independent Consensus Audit", "",
              "## Answer", "", recon.answer.statement, "", f"**Scope:** {recon.answer.scope}", "",
-             f"**Audit confidence:** {score.final_score}/100 (`pilot-v1`, uncalibrated).", "",
+             f"**{'Consensus' if workflow == 'discovery' else 'Audit'} confidence:** {score.final_score}/100 (`{score.policy_id}`, uncalibrated).", "",
              _score_reason(score), "", "## What to do next", "", recon.answer.next_action, ""]
     for section in recon.answer.answer_sections:
         lines += [section.strip(), ""]
+    if workflow == "discovery":
+        lines += ["## Discovery report agreement", "",
+                  "Agreement counts describe report positions, not evidentiary confidence.", ""]
+        claims = {c.id: c for c in recon.canonical_claims}
+        for claim_id in recon.answer.decisive_claim_ids:
+            claim = claims[claim_id]
+            relations = [relation for relation in claim.report_relations if relation.report_id.startswith("input-")]
+            counts = {
+                name: sum(relation.relation == name for relation in relations)
+                for name in ("supports", "contradicts", "related", "not_observed")
+            }
+            missing = max(0, completed - len({relation.report_id for relation in relations}))
+            lines += [
+                f"- **{claim.id}:** {counts['supports']} of {completed} support; "
+                f"{counts['contradicts']} contradict; {counts['related']} related; "
+                f"{counts['not_observed'] + missing} did not observe. {claim.statement}"
+            ]
+        lines.append("")
     lines += ["## Decisive evidence", ""]
     claims = {c.id: c for c in recon.canonical_claims}
     for claim_id in recon.answer.decisive_claim_ids:
@@ -47,8 +66,10 @@ def render_final(run_id: str, status: str, recon: Reconciliation, score: ScoreRe
     if all_limits:
         lines += ["## Limitations", ""] + [f"- {item}" for item in dict.fromkeys(all_limits)] + [""]
     lines += ["## Audited sources", "", source_summary, "", "## Confidence basis", "",
-              "This is an audit-confidence score for the stated answer and scope, not a probability or software certification.",
-              "The same validated record and `pilot-v1` policy replay deterministically; another model run may produce a different semantic record.", ""]
+              ("This score describes agreement among finalized, verified Discovery opinions for the stated answer and scope; it does not re-verify their underlying evidence."
+               if workflow == "discovery" else
+               "This is an audit-confidence score for the stated answer and scope, not a probability or software certification."),
+              f"The same validated record and `{score.policy_id}` policy replay deterministically; another model run may produce a different semantic record.", ""]
     return "\n".join(lines)
 
 

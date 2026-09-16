@@ -22,6 +22,10 @@ def test_relative_paths_resolve_from_request(tmp_path: Path, monkeypatch: pytest
     ("schema_version: 1\nschema_version: 1\nartifact: audit-request", "duplicate"),
     ("schema_version: 1\nartifact: audit-request\ninputs: []", "nonempty"),
     ("schema_version: 1\nartifact: audit-request\ninputs: [a.md]\nreviewers: 5", "not applicable"),
+    ("schema_version: 1\nartifact: audit-request\ndiscovery_runs: []", "nonempty"),
+    ("schema_version: 1\nartifact: audit-request\ninputs: [a.md]\ndiscovery_runs: [run]", "mutually exclusive"),
+    ("schema_version: 1\nartifact: audit-request\ndiscovery_runs: [run]\nreviewers: 5", "not applicable"),
+    ("schema_version: 1\nartifact: audit-request\ndiscovery_runs: [run]\nsources: [extra]", "not applicable"),
     ("schema_version: 1\nartifact: audit-request\nquorum_threshold: 0.6", "legacy"),
     ("schema_version: 1\nartifact: audit-request\nunknown: yes", "Extra inputs"),
 ])
@@ -34,3 +38,8 @@ def test_debug_false_string(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     monkeypatch.setenv("DEBUG", "false")
     request = write(tmp_path / "audit.md", "---\nschema_version: 1\nartifact: audit-request\n---\nTask\n")
     assert parse_request(request).debug is False
+
+
+def test_discovery_run_paths_resolve_from_request(tmp_path: Path) -> None:
+    request = write(tmp_path / "audit.md", "---\nschema_version: 1\nartifact: audit-request\ndiscovery_runs: [./run]\n---\nTask\n")
+    assert parse_request(request).discovery_runs == [(tmp_path / "run").resolve()]

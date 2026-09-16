@@ -65,7 +65,7 @@ def parse_request(path: Path, debug_override: bool | None = None) -> AuditReques
         if data.get(name) is not None:
             candidate = Path(data[name])
             data[name] = candidate if candidate.is_absolute() else (base / candidate).resolve()
-    for name in ("sources", "inputs"):
+    for name in ("sources", "inputs", "discovery_runs"):
         if data.get(name) is not None:
             if not isinstance(data[name], list):
                 raise RequestError(f"{name} must be a list")

@@ -31,6 +31,7 @@ class AuditRequest(StrictModel):
     spec: Path | None = None
     sources: list[Path] = Field(default_factory=list)
     inputs: list[Path] | None = None
+    discovery_runs: list[Path] | None = None
     reviewers: int | None = Field(default=None, ge=1, le=10)
     input_independence: Literal["unknown", "user_attested"] = "unknown"
     output_dir: Path | None = None
@@ -45,14 +46,20 @@ class AuditRequest(StrictModel):
     def workflow_rules(self) -> "AuditRequest":
         if not self.task.strip():
             raise ValueError("Markdown task body must be nonempty")
-        if self.inputs is not None:
-            if not self.inputs:
-                raise ValueError("inputs must be a nonempty list")
+        if self.inputs is not None and self.discovery_runs is not None:
+            raise ValueError("inputs and discovery_runs are mutually exclusive")
+        if self.discovery_runs is not None and (self.target is not None or self.spec is not None or self.sources):
+            raise ValueError("target, spec, and sources are not applicable with discovery_runs")
+        supplied = self.inputs if self.inputs is not None else self.discovery_runs
+        if supplied is not None:
+            if not supplied:
+                name = "inputs" if self.inputs is not None else "discovery_runs"
+                raise ValueError(f"{name} must be a nonempty list")
             if self.reviewers is not None:
-                raise ValueError("reviewers is not applicable when inputs are supplied")
-        if self.target is None and self.inputs is None:
+                raise ValueError("reviewers is not applicable when supplied reports are used")
+        if self.target is None and supplied is None:
             self.target = self.request_path.parent
-        if self.reviewers is None and self.inputs is None:
+        if self.reviewers is None and supplied is None:
             self.reviewers = 5
         return self
 
@@ -185,7 +192,7 @@ class Reconciliation(StrictModel):
 
 
 class ScoreResult(StrictModel):
-    policy_id: Literal["pilot-v1"] = "pilot-v1"
+    policy_id: Literal["pilot-v1", "discovery-consensus-v1"] = "pilot-v1"
     policy_digest: str
     input_record_digest: str
     calibrated: Literal[False] = False

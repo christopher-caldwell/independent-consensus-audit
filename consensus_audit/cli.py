@@ -13,7 +13,7 @@ from .application import OperationalError, run_audit
 from .contracts import Reconciliation
 from .request import RequestError, parse_request
 from .runners import create_runner
-from .scoring import score
+from .scoring import score, score_discovery_consensus
 from .storage import atomic_json, load_bundle
 from .validation import IntegrityError
 
@@ -29,7 +29,7 @@ def parser() -> argparse.ArgumentParser:
     inspect = sub.add_parser("inspect", help="inspect a retained run without model calls")
     inspect.add_argument("run_dir", type=Path); inspect.add_argument("--verify", action="store_true")
     rescore = sub.add_parser("rescore", help="recalculate confidence without model calls")
-    rescore.add_argument("run_dir", type=Path); rescore.add_argument("--policy", required=True, choices=["pilot-v1"])
+    rescore.add_argument("run_dir", type=Path); rescore.add_argument("--policy", required=True, choices=["pilot-v1", "discovery-consensus-v1"])
     return root
 
 
@@ -56,7 +56,21 @@ def _rescore(path: Path, policy: str) -> int:
     recon = Reconciliation.model_validate_json(passes[-1].read_text())
     initial = bundle.manifest["cohorts"]["initial"]
     request = json.loads((bundle.root / "request.resolved.json").read_text())
-    result = score(recon, requested=initial["requested_or_supplied"], completed=initial["completed"], independence=request["input_independence"])
+    if policy == "discovery-consensus-v1":
+        if not request.get("discovery_runs"):
+            raise IntegrityError("discovery-consensus-v1 requires a discovery_runs request")
+        report_ids = {
+            path.stem for path in (bundle.root / "reports").glob("input-*.json")
+        }
+        result = score_discovery_consensus(
+            recon, requested=initial["requested_or_supplied"], completed=initial["completed"],
+            independence=request["input_independence"], report_ids=report_ids,
+        )
+    else:
+        result = score(
+            recon, requested=initial["requested_or_supplied"], completed=initial["completed"],
+            independence=request["input_independence"],
+        )
     destination = bundle.root / "rescoring" / f"{policy}-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.json"
     atomic_json(destination, result.model_dump())
     print(f"Confidence: {result.final_score}/100 ({policy}, uncalibrated)\nNew score artifact: {destination}")

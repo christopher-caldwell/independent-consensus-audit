@@ -44,7 +44,8 @@ class CodexRunner:
                model: str | None, timeout: float, max_output_bytes: int) -> InvocationResult:
         schema_path = workspace / "output-schema.json"
         schema_path.write_text(json.dumps(self._strict_schema(schema)), encoding="utf-8")
-        command = [self.executable, "exec", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--strict-config",
+        command = [self.executable, "exec", "--ephemeral", "--skip-git-repo-check",
+                   "--ignore-user-config", "--ignore-rules", "--strict-config",
                    "--json", "--output-schema", str(schema_path), "--color", "never", "-C", str(workspace),
                    "-c", 'approval_policy="never"']
         for feature in ("shell_tool", "code_mode_host", "apps", "browser_use", "browser_use_external", "computer_use",

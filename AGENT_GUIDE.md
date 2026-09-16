@@ -22,6 +22,8 @@ Write a self contained Markdown request with YAML frontmatter. When preparing it
 
 Use `inputs` for existing reports. Do not also set `reviewers`. Record historical independence as `unknown` unless the user explicitly attests that the reports were produced separately.
 
+Use `discovery_runs` instead of `inputs` when the reports are finalized Discovery runs. Supply each run or export directory, not only its `technical-spec.md`. The workflow treats each finalized export as one verified opinion and retains only its four output artifacts: the technical specification, summary, handoff, and evidence manifest. It does not import underlying run artifacts or repeat Discovery's investigation. The selected direction and its confidence contain only adopted claims with strict-majority support; rejected alternatives and one-report optional details remain visible as disagreements without becoming decisive. `discovery_runs` is mutually exclusive with `inputs`, `reviewers`, `target`, `spec`, and `sources`.
+
 A minimal managed investigation is:
 
 ```markdown
@@ -52,6 +54,21 @@ input_independence: user_attested
 Produce one actionable technical direction. Preserve material disagreements and do not add product scope.
 ```
 
+A minimal Discovery synthesis is:
+
+```markdown
+---
+schema_version: 1
+artifact: audit-request
+discovery_runs:
+  - /absolute/path/to/project/.discovery/runs/first-run-uuid
+  - /absolute/path/to/project/.discovery/runs/second-run-uuid
+input_independence: unknown
+---
+
+Produce one actionable technical direction from the verified opinions. State their common ground and preserve material disagreements.
+```
+
 ## Run the audit
 
 Resolve the CLI once and verify it:
@@ -80,7 +97,7 @@ Do not switch providers, repeat a valid run, or weaken a failed capability check
 Read the committed `final.md` and report:
 
 - the answer within its stated scope;
-- the `pilot-v1` audit confidence score;
+- the applicable audit or Discovery-consensus confidence score;
 - the main material limitation;
 - the final report path and run directory.
 
